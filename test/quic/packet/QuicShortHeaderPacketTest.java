@@ -18,9 +18,9 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
 /**
- * Tests for the QuicInitialPacket class
+ * Tests for the QuicShortHeaderPacket class
  *
- * @author Denton Wood
+ * @author Md Rofiqul Islam
  */
 public class QuicShortHeaderPacketTest {
     public static final Charset CHARSET = StandardCharsets.UTF_8;
@@ -51,7 +51,7 @@ public class QuicShortHeaderPacketTest {
         return Stream.of(-1L, -62L, Long.MIN_VALUE, Long.MAX_VALUE);
     }
 
-    public static int BASE_HEADER_BYTE = 192;
+    public static int BASE_HEADER_BYTE = 64;
 
     public Set<QuicFrame> frames;
 
@@ -167,7 +167,7 @@ public class QuicShortHeaderPacketTest {
             return Stream.of(0, 1, 3, 17, 27, 1004).map(numFrames -> dynamicTest("num frames = " + numFrames, () -> {
                 Set<QuicFrame> frameSet = new HashSet<>();
                 frameSet.add(new QuicCryptoFrame(0,"client hello".getBytes()));
-                this.packet = new QuicShortHeaderPacket("a".getBytes(CHARSET), 0,frames);
+                this.packet = new QuicShortHeaderPacket("a".getBytes(CHARSET), 0,frameSet);
                 for (int i = 0; i < numFrames; i++) {
                     QuicFrame frame = null;
                     if (i % 3 == 0) {
@@ -209,36 +209,11 @@ public class QuicShortHeaderPacketTest {
         out.write((int) number);
     }
 
-    public byte[] writeBytes(int headerByte, long version, int dcIdLen, byte[] dcId, int scIdLen,
-                             byte[] scId,int tokenLength,byte[] token, long packetNum, Set<QuicFrame> frames) throws IOException {
+    public byte[] writeBytes(int headerByte, byte[] dcId, long packetNum, Set<QuicFrame> frames) throws IOException {
         ByteArrayOutputStream encoding = new ByteArrayOutputStream();
         // Write header byte (packet number of 0)
         encoding.write(headerByte);
-
-        // Write all four version bytes
-        encoding.write((int) version >> 24);
-        encoding.write((int) version >> 16);
-        encoding.write((int) version >> 8);
-        encoding.write((int) version);
-
-        // Write source and destination IDs
-        encoding.write(dcIdLen);
         encoding.write(dcId);
-        encoding.write(scIdLen);
-        encoding.write(scId);
-        encoding.write(tokenLength);
-        if(tokenLength>0) {
-            encoding.write(token);
-        }
-        int len = 0;
-
-        // Write the frames to get the length
-        ByteArrayOutputStream frameOut = new ByteArrayOutputStream();
-        Iterator<QuicFrame> frameIter = frames.iterator();
-        while (frameIter.hasNext()) {
-            frameOut.write(frameIter.next().encode());
-        }
-        len += frameOut.size();
 
         // Write the packet number to get the length
         ByteArrayOutputStream packetOut = new ByteArrayOutputStream();
@@ -246,13 +221,12 @@ public class QuicShortHeaderPacketTest {
         for (int i = prefix; i >= 0; i--) {
             packetOut.write((int) packetNum >> 8 * i);
         }
-        len += packetOut.size();
-
-        // Write length of packet using variable-length encoding
-        writeVariableLengthNumber(len, encoding);
-
-        // Write the packet number using a variable-length encoding of 0 bytes
+        ByteArrayOutputStream frameOut = new ByteArrayOutputStream();
         encoding.write(packetOut.toByteArray());
+        Iterator<QuicFrame> frameIter = frames.iterator();
+        while (frameIter.hasNext()) {
+            frameOut.write(frameIter.next().encode());
+        }
 
         // Write the frames (for real this time)
         encoding.write(frameOut.toByteArray());
@@ -269,8 +243,8 @@ public class QuicShortHeaderPacketTest {
                 byte[] scID = "1".getBytes(CHARSET);
                 Set<QuicFrame> frames = new HashSet<>();
                 frames.add(new QuicCryptoFrame(0, "hello World".getBytes()));
-                QuicInitialPacket packet = new QuicInitialPacket(dcID, 1, version, scID, frames);
-                byte[] encoding = writeBytes(BASE_HEADER_BYTE, version, 1, dcID, 1, scID,0,null, 1, frames);
+                QuicShortHeaderPacket packet = new QuicShortHeaderPacket(dcID, 1, frames);
+                byte[] encoding = writeBytes(BASE_HEADER_BYTE,  dcID,1, frames);
                 assertArrayEquals(encoding, packet.encode());
             }));
         }
@@ -281,7 +255,7 @@ public class QuicShortHeaderPacketTest {
                 byte[] dcId = "1".getBytes(CHARSET);
                 byte[] scId = "1".getBytes(CHARSET);
                 long packetNumber = 1;
-                QuicInitialPacket packet = new QuicInitialPacket(dcId, 1, CURRENT_VERSION, scId, frames);
+                QuicShortHeaderPacket packet = new QuicShortHeaderPacket(dcId, 1, frames);
                 Set<QuicFrame> frameSet = new HashSet<>(frames);
                 for (int i = 0; i < numFrames; i++) {
                     QuicFrame frame;
@@ -295,7 +269,7 @@ public class QuicShortHeaderPacketTest {
                     packet.addFrame(frame);
                     frameSet.add(frame);
                 }
-                byte[] encoding = writeBytes(BASE_HEADER_BYTE, CURRENT_VERSION, 1, dcId, 1, scId,0,null, packetNumber, frameSet);
+                byte[] encoding = writeBytes(BASE_HEADER_BYTE,  dcId,packetNumber, frameSet);
                 assertArrayEquals(encoding, packet.encode());
             }));
         }
@@ -305,8 +279,8 @@ public class QuicShortHeaderPacketTest {
             byte[] dcId = "aaaaaaaaaaaaaaaaaaaa".getBytes(CHARSET);
             byte[] scId = "88888888888888888888".getBytes(CHARSET);
             long packetNumber = 27;
-            QuicInitialPacket packet = new QuicInitialPacket(dcId, packetNumber, CURRENT_VERSION, scId, frames);
-            byte[] encoding = writeBytes(BASE_HEADER_BYTE, CURRENT_VERSION, 20, dcId, 20, scId,0,null, packetNumber, frames);
+            QuicShortHeaderPacket packet = new QuicShortHeaderPacket(dcId, packetNumber, frames);
+            byte[] encoding = writeBytes(BASE_HEADER_BYTE,  dcId,packetNumber,  frames);
             assertArrayEquals(encoding, packet.encode());
         }
 
@@ -317,8 +291,8 @@ public class QuicShortHeaderPacketTest {
                 byte[] scId = "1".getBytes(CHARSET);
                 long packetNum = (long)( Math.pow(2,(8*(prefix+1)))-1);
                 int headerByte = BASE_HEADER_BYTE + prefix;
-                QuicInitialPacket packet = new QuicInitialPacket(dcId, packetNum, CURRENT_VERSION, scId, frames);
-                byte[] encoding = writeBytes(headerByte, CURRENT_VERSION, 1, dcId, 1, scId,0,null, packetNum, frames);
+                QuicShortHeaderPacket packet = new QuicShortHeaderPacket(dcId, packetNum, frames);
+                byte[] encoding = writeBytes(headerByte,  dcId, packetNum, frames);
                 assertArrayEquals(encoding, packet.encode());
             }));
         }
@@ -326,23 +300,10 @@ public class QuicShortHeaderPacketTest {
 
     @Nested
     public class DecodeTest {
-        @TestFactory
-        public Stream<DynamicTest> testValidVersions() {
-            return getValidVersions().map(version -> dynamicTest("version = " + version, () -> {
-                byte[] dcId = "1".getBytes(CHARSET);
-                byte[] scId = "1".getBytes(CHARSET);
-                byte[] encoding = writeBytes(BASE_HEADER_BYTE, version, 1, dcId, 1, scId,0,null, 1, frames);
-                QuicInitialPacket packet = (QuicInitialPacket) QuicPacket.decode(encoding);
-                assertArrayEquals(dcId, packet.getDcID());
-                assertArrayEquals(scId, packet.getScID());
-                assertEquals(1, packet.getPacketNumber());
-                assertEquals(version, packet.getVersion());
-            }));
-        }
 
         @TestFactory
         public Stream<DynamicTest> testRandomStrings() {
-            return Stream.of("", "abc123", "1234567890", "this is a long random string").map(str -> dynamicTest("str = " + str, () -> {
+            return Stream.of("", "1234567890", "this is a long random string").map(str -> dynamicTest("str = " + str, () -> {
                 assertThrows(QuicException.class, () -> {
                     byte[] encoding = str.getBytes(CHARSET);
                     QuicPacket packet = QuicPacket.decode(encoding);
@@ -358,27 +319,26 @@ public class QuicShortHeaderPacketTest {
                         getValidConnectionIds().map(scId -> dynamicTest(
                                 "dcid = " + dcId + ", packet # = " + packetNumber + ", version = "
                                         + version + ", scid = " + scId, () -> {
-                                    QuicInitialPacket packet1 = new QuicInitialPacket(dcId, packetNumber, version, scId, frames);
-                                    QuicInitialPacket packet2 = new QuicInitialPacket(dcId, packetNumber, version, scId, frames);
+                                    QuicShortHeaderPacket packet1 = new QuicShortHeaderPacket(dcId, packetNumber,frames);
+                                    QuicShortHeaderPacket packet2 = new QuicShortHeaderPacket(dcId, packetNumber,frames);
                                     assertEquals(packet1, packet2);
                                     assertEquals(packet1.hashCode(), packet2.hashCode());
                                 })))));
     }
 
+
     @TestFactory
     public Stream<DynamicTest> testToString() {
         return getValidConnectionIds().flatMap(dcId -> getValidPacketNumbers()
-                .flatMap(packetNumber -> getValidVersions().flatMap(version ->
-                        getValidConnectionIds().map(scId -> dynamicTest(
-                                "dcid = " + dcId + ", packet # = " + packetNumber + ", version = "
-                                        + version + ", scid = " + scId, () -> {
-                                    QuicInitialPacket packet = new QuicInitialPacket(dcId, packetNumber, version, scId, frames);
+                .map(packetNumber ->  dynamicTest(
+                                "dcid = " + dcId + ", packet # = " + packetNumber , () -> {
+                                    QuicShortHeaderPacket packet = new QuicShortHeaderPacket(dcId, packetNumber, frames);
                                     StringBuilder builder = new StringBuilder();
                                     for (QuicFrame frame: frames) {
                                         builder.append(frame.toString());
                                     }
-                                    assertEquals("QuicInitialPacket{version=" + version + ", scID=" + printConnectionId(scId) + ", dcID=" + printConnectionId(dcId) + ", packetNumber=" + packetNumber + ", frames=[" + builder.toString() + "]}", packet.toString());
-                                })))));
+                                    assertEquals("QuicShortHeaderPacket{dcID=" + printConnectionId(dcId) + ", packetNumber=" + packetNumber + ", frames=[" + builder.toString() + "]}", packet.toString());
+                                })));
     }
 
     /**

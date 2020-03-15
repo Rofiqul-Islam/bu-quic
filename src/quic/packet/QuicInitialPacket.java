@@ -1,6 +1,10 @@
 package quic.packet;
 
+import quic.exception.QuicException;
 import quic.frame.QuicFrame;
+import quic.main.ConnectionSecrets;
+import quic.main.EncryptionLevel;
+import quic.util.ConnectionUtil;
 import quic.util.Util;
 
 import java.io.ByteArrayOutputStream;
@@ -8,6 +12,8 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Iterator;
 import java.util.Set;
+
+import static quic.main.Client.connectionSecrets;
 
 /**
  * Represents a QUIC Initial Packet. It carries the first CRYPTO frames sent
@@ -103,6 +109,39 @@ public class QuicInitialPacket extends QuicLongHeaderPacket {
             System.out.println(e);
         }
         return encoding.toByteArray();
+    }
+
+    public byte[] specialEncode() throws IOException, QuicException {
+        ByteBuffer packetBuffer = ByteBuffer.allocate(1500);
+        packetBuffer.put(Util.hexStringToByteArray(Util.byteToHex(headerByte),1));
+        packetBuffer.put(Util.hexStringToByteArray(Long.toHexString(this.getVersion()),4));
+        packetBuffer.put(Util.hexStringToByteArray((Util.byteToHex((byte)this.getDcID().length)),1));
+        packetBuffer.put(Util.hexStringToByteArray(Util.bytesArrayToHex(this.getDcID()),this.getDcID().length));
+        packetBuffer.put(Util.hexStringToByteArray((Util.byteToHex((byte)this.getScID().length)),1));
+        packetBuffer.put(Util.hexStringToByteArray(Util.bytesArrayToHex(this.getScID()),this.getScID().length));
+        packetBuffer.put(Util.hexStringToByteArray(Util.byteToHex((byte)this.getTokenLength()),1));
+        long frameSize = 0;
+        Iterator<QuicFrame> iterator1 = this.getFrames().iterator();
+        ByteBuffer temp = ByteBuffer.allocate(1500);
+        while (iterator1.hasNext()) {
+            QuicFrame f = iterator1.next();
+            frameSize += f.encode().length;
+            temp.put(f.encode());
+        }
+        temp.flip();
+        packetBuffer.put(Util.generateVariableLengthInteger(packetNumberLength + frameSize+16));
+        byte[] packetNo = Util.hexStringToByteArray((Long.toHexString(this.getPacketNumber())),packetNumberLength);
+        packetBuffer.put(packetNo);
+        System.out.println("vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv");
+        ConnectionUtil.protectPacketNumberAndPayload(packetBuffer,packetNo,temp,0,connectionSecrets.getClientSecrets(EncryptionLevel.Initial));
+       /* byte[] result =  new byte[packetBuffer.capacity()];
+        packetBuffer.rewind();
+        packetBuffer.get(result,0,result.length);*/
+       packetBuffer.limit(packetBuffer.position());
+       byte[]result = new byte[packetBuffer.position()];
+       packetBuffer.rewind();
+       packetBuffer.get(result);
+        return result;
     }
 
     @Override

@@ -19,7 +19,7 @@ import java.util.Set;
  */
 public class QuicShortHeaderPacket extends QuicPacket {
 
-    int headerByte;
+    byte headerByte;
     int packetNumberLength;
     /**
      * Value constructor for QuicShortHeaderPacket class
@@ -32,7 +32,7 @@ public class QuicShortHeaderPacket extends QuicPacket {
         this.setHeaderByte(packetNumber);
     }
 
-    public int getHeaderByte() {
+    public byte getHeaderByte() {
         return headerByte;
     }
 
@@ -45,7 +45,7 @@ public class QuicShortHeaderPacket extends QuicPacket {
             this.headerByte = 65;
             this.packetNumberLength = 2;
         }
-        if(packetNumber<Math.pow(2,24)) {
+        else if(packetNumber<Math.pow(2,24)) {
             this.headerByte = 66;
             this.packetNumberLength = 3;
         }
@@ -64,28 +64,33 @@ public class QuicShortHeaderPacket extends QuicPacket {
     public byte[] encode() {
         ByteArrayOutputStream encoding = new ByteArrayOutputStream();
         try {
-            encoding.write(headerByte);
+            encoding.write(Util.hexStringToByteArray(Util.byteToHex(this.getHeaderByte()),1));
             encoding.write(Util.hexStringToByteArray(Util.bytesArrayToHex(this.getDcID()),this.getDcID().length));
-            int frameSize = 0;
+
+
             Iterator<QuicFrame> iterator1 = this.getFrames().iterator();
+            ByteArrayOutputStream temp = new ByteArrayOutputStream();
             while (iterator1.hasNext()) {
                 QuicFrame f = iterator1.next();
-                frameSize += f.encode().length;
+                temp.write(f.encode());
             }
-            ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
-            buffer.putLong(this.getPacketNumber());
-            byte[] packetNo = buffer.array();
-            encoding.write(packetNo.length + frameSize);
-            encoding.write(packetNo);
-            Iterator<QuicFrame> iterator2 = this.getFrames().iterator();
-            while (iterator2.hasNext()) {
-                QuicFrame f = iterator2.next();
-                encoding.write(f.encode());
-            }
+            encoding.write(Util.hexStringToByteArray((Long.toHexString(this.getPacketNumber())),packetNumberLength));
+            encoding.write(temp.toByteArray());
+
 
         } catch (IOException e) {
             System.out.println(e);
         }
         return encoding.toByteArray();
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder builder = new StringBuilder();
+        Set<QuicFrame>temp = showFrames();
+        for (QuicFrame frame: temp) {
+            builder.append(frame.toString());
+        }
+        return "QuicShortHeaderPacket{dcID=" + Util.printConnectionId(this.getDcID()) + ", packetNumber=" + this.getPacketNumber() + ", frames=[" + builder.toString() + "]}";
     }
 }

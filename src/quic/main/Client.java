@@ -135,7 +135,7 @@ public class Client {
         QuicFrame cryptoFrame = new QuicCryptoFrame(0,clientHello);
         System.out.println(cryptoFrame.encode().length);
         System.out.println("----------------------------");
-        QuicInitialPacket clientHelloPacket = (QuicInitialPacket) Util.createPacket(EncryptionLevel.Initial, cryptoFrame,connectionId.getBytes(),1,25,"127.0.0.1".getBytes());
+        QuicInitialPacket clientHelloPacket = (QuicInitialPacket) Util.createPacket(EncryptionLevel.Initial, cryptoFrame,connectionId.getBytes(),1,4278190080L+25,"12".getBytes());
         // Initial packet should at least be 1200 bytes (https://tools.ietf.org/html/draft-ietf-quic-transport-18#section-14)
         //clientHelloPacket.ensureSize(1200);
 
@@ -143,7 +143,7 @@ public class Client {
         DatagramSocket ds = new DatagramSocket();
 
         InetAddress ip = InetAddress.getByName("216.155.158.183");
-        byte buf[] = clientHelloPacket.encode();
+        byte buf[] = clientHelloPacket.specialEncode();
         for(byte x : buf){
             System.out.println(x);
         }

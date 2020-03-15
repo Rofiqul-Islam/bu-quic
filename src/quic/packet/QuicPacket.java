@@ -16,6 +16,8 @@ import java.util.*;
  */
 public abstract class QuicPacket {
 
+    private static int dcIdSize = 0;
+
     /**
      * The Destination Connection ID field follows the DCID Len and is between 0 and 20 bytes in length.
      */
@@ -41,12 +43,23 @@ public abstract class QuicPacket {
     public QuicPacket(byte[] dcID, long packetNumber, Set<QuicFrame> frames) {
         this.setDcID(dcID);
         this.setPacketNumber(packetNumber);
+        this.setDcIdSize(dcID.length);
         if(frames!=null && frames.size()==0){
             throw new IllegalArgumentException();
         }
-        for(QuicFrame x:frames){
-            this.addFrame(x);
+        if (frames != null) {
+            for (QuicFrame x : frames) {
+                this.addFrame(x);
+            }
         }
+    }
+
+    public static int getDcIdSize() {
+        return dcIdSize;
+    }
+
+    public static void setDcIdSize(int dcIdSize) {
+        QuicPacket.dcIdSize = dcIdSize;
     }
 
     /**
@@ -69,7 +82,7 @@ public abstract class QuicPacket {
      */
 
     public static QuicPacket decode(byte[] arr, int dcIdSize) throws QuicException {
-        return null;
+        return Util.quicShortHeaderDecoder(arr,dcIdSize);
     }
 
     /**
@@ -94,6 +107,9 @@ public abstract class QuicPacket {
             if((headerByte & 12) != 0){
                 throw new QuicException(0, 0, "Invalid header byte");
             }
+            if((headerByte & 64) ==0){
+                throw new QuicException(0, 0, "Invalid header byte");
+            }
             for (int c = 7; c >= 0; c--) {
                 int x = (int) Math.pow(2, c);
                 if ((x & headerByte) == 0) {
@@ -106,19 +122,19 @@ public abstract class QuicPacket {
         } catch (Exception e) {
             throw new QuicException(0, 0, "invalid input");
         }
-        //System.out.println(headerArry[2]+" "+headerArry[3]);
         if (headerArry[0] == 0) {
             //shortheader
+            return decode(arr,getDcIdSize());
         } else if (headerArry[0] == 1) {                          //Long header
             if (headerArry[2] == 0 && headerArry[3] == 0) {
                 //intialpacket
-                return quicIntialPacketDecoder(0, arr, headerByte, headerArry);
+                return Util.quicIntialPacketDecoder(0, arr, headerByte, headerArry);
             } else if (headerArry[2] == 0 && headerArry[3] == 1) {
                 //0-RTT
-                return quicLongHeaderPacketDecoder(1, arr, headerByte, headerArry);
+                return Util.quicLongHeaderPacketDecoder(1, arr, headerByte, headerArry);
             } else if (headerArry[2] == 1 && headerArry[3] == 0) {
                 //handshake
-                return quicLongHeaderPacketDecoder(2, arr, headerByte, headerArry);
+                return Util.quicLongHeaderPacketDecoder(2, arr, headerByte, headerArry);
 
             } else {
                 throw new QuicException(0, 0, "header byte invalid");
@@ -204,186 +220,7 @@ public abstract class QuicPacket {
 
     }
 
-    public static QuicPacket quicIntialPacketDecoder(int type, byte[] arr, int headerByte, int headerArry[]) {
-        int p = 1;
-        byte[] version_arr = new byte[4];
-        int n = p;
-        for (; n < p + 4; n++) {
-            version_arr[n - p] = arr[n];
-        }
-        long version = Util.variableLengthInteger(version_arr, 0);
-        System.out.println("version = " + version);
-        p = n;
-        ////////////////////////////
-        int dcIdLenD = (int) arr[p];
-        System.out.println("dcidlen = " + dcIdLenD);
-        p++;
-        byte[] dcIdD = new byte[dcIdLenD];
-        int i = p;
-        for (; i < p + dcIdLenD; i++) {
-            dcIdD[i - p] = arr[i];
-        }
-        System.out.print("dcId = ");
-        for (byte x : dcIdD) {
-            System.out.print(Util.byteToHex(x) + " ");
-        }
-        System.out.println();
-        p = i;
-        ///////////////////////////
-        int scIdLenD = (int) arr[p];
-        System.out.println("scidlen = " + scIdLenD);
-        p++;
-        byte[] scIdD = new byte[scIdLenD];
-        int j = p;
-        for (; j < p + scIdLenD; j++) {
-            scIdD[j - p] = arr[j];
-        }
-        System.out.print("scId = ");
-        for (byte x : scIdD) {
-            System.out.print(Util.byteToHex(x) + " ");
-        }
-        System.out.println();
-        p = j;
-        ////////////////////////////
-        int tokenLengthLen = Util.variableLengthIntegerLength(arr[p]);
-        byte[] tokenLength_arr = new byte[tokenLengthLen];
-        for (int c = p; c < p + tokenLengthLen; c++) {
-            tokenLength_arr[c - p] = arr[c];
-        }
-        p += tokenLengthLen;
-        long tokenLength = Util.variableLengthInteger(tokenLength_arr, 1);
-        System.out.println("Token length = " + tokenLength);
 
-        byte[] token = new byte[(int) tokenLength];
-        for (int c = p; c < p + tokenLength; c++) {
-            token[c - p] = arr[c];
-        }
-        p += tokenLength;
-        ////////////////////////////
-        int lengthSize = Util.variableLengthIntegerLength(arr[p]);
-        byte[] len_arr = new byte[lengthSize];
-        for (int c = p; c < lengthSize + p; c++) {
-            len_arr[c - p] = arr[c];
-        }
-        p += lengthSize;
-        long length = Util.variableLengthInteger(len_arr, 1);
-        System.out.println("length = " + length);
-        ///////////////////////////////////////
-        int packetNoLen = (headerByte & 3) + 1;
-
-        byte[] packNum_arr = new byte[packetNoLen];
-        for (int c = p; c < packetNoLen + p; c++) {
-            packNum_arr[c - p] = arr[c];
-        }
-        p += packetNoLen;
-        long packetNum = Util.variableLengthInteger(packNum_arr, 0);
-        System.out.println("packetNumber = " + packetNum);
-        /////////
-        byte[] frameSetD = new byte[(int) (length - packetNoLen)];
-        int k = p;
-
-        for (; k < p + (length - (packetNoLen)); k++) {
-            frameSetD[k - p] = arr[k];
-            System.out.print(k + " ");
-        }
-        p=k;
-        Set<QuicFrame>temp = new HashSet<>();
-        try {
-            temp.add(QuicFrame.decode(frameSetD));
-        } catch (QuicException e) {
-            e.printStackTrace();
-        }
-        if (type == 0) {
-            QuicPacket initialPacket = new QuicInitialPacket(dcIdD, packetNum, version, scIdD,temp);
-            return initialPacket;
-        }
-
-        return null;
-    }
-
-    public static QuicPacket quicLongHeaderPacketDecoder(int type, byte[] arr, int headerByte, int headerArry[]) {
-        int p = 1;
-        byte[] version_arr = new byte[4];
-        int n = p;
-        for (; n < p + 4; n++) {
-            version_arr[n - p] = arr[n];
-        }
-        long version = Util.variableLengthInteger(version_arr, 0) ;
-        System.out.println("version = " + version);
-        p = n;
-        ////////////////////////////
-        int dcIdLenD = (int) arr[p];
-        System.out.println("dcidlen = " + dcIdLenD);
-        p++;
-        byte[] dcIdD = new byte[dcIdLenD];
-        int i = p;
-        for (; i < p + dcIdLenD; i++) {
-            dcIdD[i - p] = arr[i];
-        }
-        System.out.print("dcId = ");
-        for (byte x : dcIdD) {
-            System.out.print(Util.byteToHex(x) + " ");
-        }
-        System.out.println();
-        p = i;
-        ///////////////////////////
-        int scIdLenD = (int) arr[p];
-        System.out.println("scidlen = " + scIdLenD);
-        p++;
-        byte[] scIdD = new byte[scIdLenD];
-        int j = p;
-        for (; j < p + scIdLenD; j++) {
-            scIdD[j - p] = arr[j];
-        }
-        System.out.print("scId = ");
-        for (byte x : scIdD) {
-            System.out.print(Util.byteToHex(x) + " ");
-        }
-        System.out.println();
-        p = j;
-        ////////////////////////////
-        int lengthSize = Util.variableLengthIntegerLength(arr[p]);
-        byte[] len_arr = new byte[lengthSize];
-        for (int c = p; c < lengthSize + p; c++) {
-            len_arr[c - p] = arr[c];
-        }
-        p += lengthSize;
-        long length = Util.variableLengthInteger(len_arr, 1);
-        System.out.println("length = " + length);
-        ///////////////////////////////////////
-        int packetNoLen = (headerByte & 3) + 1;
-
-        byte[] packNum_arr = new byte[packetNoLen];
-        for (int c = p; c < packetNoLen + p; c++) {
-            packNum_arr[c - p] = arr[c];
-        }
-        p += packetNoLen;
-        long packetNum = Util.variableLengthInteger(packNum_arr, 0);
-        System.out.println("packetNumber = " + packetNum);
-        /////////
-        byte[] frameSetD = new byte[(int) (length - packetNoLen)];
-        int k = p;
-
-        for (; k < p + (length - (packetNoLen)); k++) {
-            frameSetD[k - p] = arr[k];
-            System.out.print(k + " ");
-        }
-        p = k;
-        Set<QuicFrame>temp = new HashSet<>();
-        try {
-            temp.add(QuicFrame.decode(frameSetD));
-        } catch (QuicException e) {
-            e.printStackTrace();
-        }
-        if (type == 1) {
-            QuicPacket zeroRttPacket = new QuicZeroRTTPacket(dcIdD, packetNum, version, scIdD, temp);
-            return zeroRttPacket;
-        } else if (type == 2) {
-            return new QuicHandshakePacket(dcIdD, packetNum, version, scIdD, temp);
-        }
-
-        return null;
-    }
 
     @Override
     public boolean equals(Object o) {
