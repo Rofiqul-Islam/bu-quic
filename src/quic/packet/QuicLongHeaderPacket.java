@@ -1,7 +1,10 @@
 package quic.packet;
 
+import quic.frame.QuicFrame;
+
 import java.util.Arrays;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Represents IETF-QUIC Packet
@@ -29,8 +32,8 @@ public abstract class QuicLongHeaderPacket extends QuicPacket{
      * @param version version of QUIC
      * @param scID source connections ID
      */
-    public QuicLongHeaderPacket(byte[] dcID, long packetNumber, long version, byte[] scID) {
-        super(dcID, packetNumber);
+    public QuicLongHeaderPacket(byte[] dcID, long packetNumber, long version, byte[] scID, Set<QuicFrame> frames) {
+        super(dcID, packetNumber,frames);
         this.setVersion(version);
         this.setScID(scID);
     }

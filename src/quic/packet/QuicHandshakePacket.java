@@ -29,15 +29,8 @@ public class QuicHandshakePacket extends QuicLongHeaderPacket {
      * @param frames
      */
     public QuicHandshakePacket(byte[] dcID, long packetNumber, long version, byte[] scID, Set<QuicFrame> frames) {
-        super(dcID, packetNumber, version, scID);
+        super(dcID, packetNumber, version, scID,frames);
         this.setHeaderByte(packetNumber);
-        if(frames!=null && frames.size()==0){
-            throw new IllegalArgumentException();
-        }
-        for(QuicFrame x:frames){
-            this.addFrame(x);
-        }
-
     }
 
     public int getHeaderByte() {
@@ -61,6 +54,7 @@ public class QuicHandshakePacket extends QuicLongHeaderPacket {
             this.headerByte = 227;
             this.packetNumberLength=4;
         }
+
     }
 
     public byte[] getPayload() {

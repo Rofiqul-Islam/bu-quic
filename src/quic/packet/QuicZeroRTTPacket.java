@@ -28,15 +28,9 @@ public class QuicZeroRTTPacket extends QuicLongHeaderPacket {
      * @param frames
      */
     public QuicZeroRTTPacket(byte[] dcID, long packetNumber, long version, byte[] scID, Set<QuicFrame> frames) {
-        super(dcID, packetNumber, version, scID);
+        super(dcID, packetNumber, version, scID,frames);
         this.setHeaderByte(packetNumber);
-        System.out.println("input frame size = "+frames.size());
-        if(frames!=null && frames.size()==0){
-            throw new IllegalArgumentException();
-        }
-        for(QuicFrame x:frames){
-            this.addFrame(x);
-        }
+
     }
 
     public int getHeaderByte() {
@@ -59,6 +53,9 @@ public class QuicZeroRTTPacket extends QuicLongHeaderPacket {
         else if(packetNumber<Math.pow(2,32)){
             this.headerByte = (byte)211;
             this.packetNumberLength =4;
+        }
+        else{
+            throw new IllegalArgumentException();
         }
     }
 

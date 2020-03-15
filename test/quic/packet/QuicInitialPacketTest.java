@@ -34,7 +34,7 @@ public class QuicInitialPacketTest {
     }
 
     public static Stream<Long> getValidPacketNumbers() {
-        return Stream.of(0L, 1L, 27L, Long.MAX_VALUE);
+        return Stream.of(0L, 1L, 27L, (long) Integer.MAX_VALUE, (long) Math.pow(2, 32) - 1);
     }
 
     public static Stream<Long> getInvalidPacketNumbers() {

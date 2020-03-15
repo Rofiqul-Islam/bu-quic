@@ -8,6 +8,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Iterator;
+import java.util.Set;
 
 /**
  * Represents a QUIC Short Header Packet.
@@ -19,14 +20,15 @@ import java.util.Iterator;
 public class QuicShortHeaderPacket extends QuicPacket {
 
     int headerByte;
+    int packetNumberLength;
     /**
      * Value constructor for QuicShortHeaderPacket class
      *
      * @param dcID         destination connection ID
      * @param packetNumber number of the packet
      */
-    public QuicShortHeaderPacket(byte[] dcID, long packetNumber) {
-        super(dcID, packetNumber);
+    public QuicShortHeaderPacket(byte[] dcID, long packetNumber, Set<QuicFrame> frames) {
+        super(dcID, packetNumber,frames);
         this.setHeaderByte(packetNumber);
     }
 
@@ -37,15 +39,19 @@ public class QuicShortHeaderPacket extends QuicPacket {
     public void setHeaderByte(Long packetNumber) {
         if(packetNumber<Math.pow(2,8)) {
             this.headerByte = 64;
+            this.packetNumberLength = 1;
         }
         else if(packetNumber<Math.pow(2,16)){
             this.headerByte = 65;
+            this.packetNumberLength = 2;
         }
         if(packetNumber<Math.pow(2,24)) {
             this.headerByte = 66;
+            this.packetNumberLength = 3;
         }
         else if(packetNumber<Math.pow(2,32)){
             this.headerByte = 67;
+            this.packetNumberLength = 4;
         }
     }
 

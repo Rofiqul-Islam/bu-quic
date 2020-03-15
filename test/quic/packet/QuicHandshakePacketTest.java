@@ -34,11 +34,11 @@ public class QuicHandshakePacketTest {
     }
 
     public static Stream<Long> getValidPacketNumbers() {
-        return Stream.of(0L, 1L, 27L, Long.MAX_VALUE);
+        return Stream.of(0L, 1L, 27L, (long) Integer.MAX_VALUE, (long) Math.pow(2, 32) - 1);
     }
 
     public static Stream<Long> getInvalidPacketNumbers() {
-        return Stream.of(-1L, -27L, Long.MIN_VALUE);
+        return Stream.of(-1L, -27L, Long.MIN_VALUE, Long.MAX_VALUE);
     }
 
     public static long CURRENT_VERSION = 25;
@@ -51,7 +51,7 @@ public class QuicHandshakePacketTest {
         return Stream.of(-1L, -62L, Long.MIN_VALUE, Long.MAX_VALUE);
     }
 
-    public static int BASE_HEADER_BYTE = 224;
+    public static final int BASE_HEADER_BYTE = 224;
 
     public Set<QuicFrame> frames;
 
@@ -363,7 +363,7 @@ public class QuicHandshakePacketTest {
             return Stream.of(0, 1, 2, 3).map(prefix -> dynamicTest("prefix = " + prefix, () -> {
                 byte[] dcId = "1".getBytes(CHARSET);
                 byte[] scId = "1".getBytes(CHARSET);
-                long packetNum = (long) Math.pow(16, Math.pow(2, prefix));
+                long packetNum = (long) Math.pow(256, prefix + 1) - 1;
                 int headerByte = BASE_HEADER_BYTE + prefix;
                 QuicHandshakePacket packet = new QuicHandshakePacket(dcId, packetNum, CURRENT_VERSION, scId, frames);
                 byte[] encoding = writeBytes(headerByte, CURRENT_VERSION, 1, dcId, 1, scId, packetNum, frames);

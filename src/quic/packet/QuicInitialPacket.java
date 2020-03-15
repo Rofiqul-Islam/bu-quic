@@ -29,15 +29,10 @@ public class QuicInitialPacket extends QuicLongHeaderPacket {
      * @param scID source connections ID
      */
     public QuicInitialPacket(byte[] dcID, long packetNumber, long version, byte[] scID, Set<QuicFrame> frames) {
-        super(dcID,packetNumber,version,scID);
+        super(dcID,packetNumber,version,scID,frames);
         this.setHeaderByte(packetNumber);
         this.setTokenLength(0);
-        if(frames!=null && frames.size()==0){
-            throw new IllegalArgumentException();
-        }
-        for(QuicFrame x:frames){
-            this.addFrame(x);
-        }
+
     }
 
     public int getHeaderByte() {
@@ -60,6 +55,9 @@ public class QuicInitialPacket extends QuicLongHeaderPacket {
         else if(packetNumber<Math.pow(2,32)){
             this.headerByte = (byte)195;
             this.packetNumberLength = 4;
+        }
+        else{
+            throw new IllegalArgumentException();
         }
     }
 
