@@ -70,13 +70,13 @@ public class QuicCryptoFrame extends QuicFrame {
             e.printStackTrace();
         }
         byte[] temp = encoding.toByteArray();
-        /*if (temp.length < 1200) {
+        if (temp.length < 1200) {
             byte[] data = new byte[1200];
             for (int i = 0; i < temp.length; i++) {
                 data[i] = temp[i];
             }
             return data;
-        }*/
+        }
         return temp;
 
     }
