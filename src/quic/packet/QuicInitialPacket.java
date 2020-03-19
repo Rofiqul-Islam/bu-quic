@@ -132,7 +132,6 @@ public class QuicInitialPacket extends QuicLongHeaderPacket {
         packetBuffer.put(Util.generateVariableLengthInteger(packetNumberLength + frameSize+16));
         byte[] packetNo = Util.hexStringToByteArray((Long.toHexString(this.getPacketNumber())),packetNumberLength);
         packetBuffer.put(packetNo);
-        System.out.println("vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv");
         ConnectionUtil.protectPacketNumberAndPayload(packetBuffer,packetNo,temp,0,connectionSecrets.getClientSecrets(EncryptionLevel.Initial));
        /* byte[] result =  new byte[packetBuffer.capacity()];
         packetBuffer.rewind();

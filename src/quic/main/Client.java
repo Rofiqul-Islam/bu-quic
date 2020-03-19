@@ -21,18 +21,21 @@ import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
 import quic.log.*;
 
+import javax.crypto.spec.SecretKeySpec;
+
 import static net.luminis.tls.Tls13.generateKeys;
 
 public class Client {
-    public static ECPrivateKey privateKey=null;
+    public static ECPrivateKey privateKey;
     public static ECPublicKey publicKey=null;
     public static ConnectionSecrets connectionSecrets = null;
     private static Logger log;
     private static String applicationProtocol = null;
-    public static String connectionId="216.155.158.183";
+    public static String connectionId="185.92.221.97";
     private static Version quicVersion= Version.IETF_draft_25;
     public static TlsState tlsState;
     public static NewSessionTicket sessionTicket;
+    public static String destianation = "f950a2452f536c37e750ecac4f9819f0f64c1311";
     public static void main(String args[]) throws IOException, QuicException {
 
         try {
@@ -44,12 +47,13 @@ public class Client {
             Path path = Paths.get("C:\\Datacom\\qq\\quic\\src\\quic\\secrets\\");
             connectionSecrets = new ConnectionSecrets(Version.IETF_draft_25, path, logger);
             ECKey[] keys = generateKeys("secp256r1");
+            //ECKey[] keys = generateKeys("X25519");
             privateKey = (ECPrivateKey) keys[0];
             publicKey = (ECPublicKey) keys[1];
-           // System.out.println(privateKey);
+            tlsState = new QuicTlsState(quicVersion);
             //System.out.println(publicKey);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to generate key pair.");
+            throw new RuntimeException(e);
         }
 
 
@@ -79,15 +83,15 @@ public class Client {
             // Step 3 : invoke the send call to actually send
             // the data.
             //ds.send(DpSend);
-            //byte[] b1 = new byte[2048];
-            //DatagramPacket DpRecv = new DatagramPacket(b1,b1.length);
-            //ds.receive(DpRecv);
+            /*byte[] b1 = new byte[2048];
+            DatagramPacket DpRecv = new DatagramPacket(b1,b1.length);
+            ds.receive(DpRecv);*/
             //System.out.println(DpRecv);
             //String str = Util.bytesArrayToHex(DpRecv.getData());
            // System.out.println(str);
 
 
-       /* String s1 = "e6ff00001908fe89f2b74b6fc359004018f231ee4ac068f616408dc7c531626943699d839ca3b06403";
+        /*String s1 = "e6ff00001908fe89f2b74b6fc359004018f231ee4ac068f616408dc7c531626943699d839ca3b06403";
             buf1= Util.hexStringToByteArray(s1,0);
             DpSend = new DatagramPacket(buf1,buf1.length,ip,4433);
             ds.receive(DpRecv);
@@ -100,14 +104,14 @@ public class Client {
     public static synchronized void connect(int connectionTimeout, String applicationProtocol) throws IOException, QuicException {
 
         //log.info("Original destination connection id", connectionId.getBytes());
-        connectionSecrets.computeInitialKeys(connectionId.getBytes());
+        connectionSecrets.computeInitialKeys(Util.hexStringToByteArray(destianation,0));
 
         //receiver.start();
        // sender.start(connectionSecrets);
        // startReceiverLoop();
 
         if(applicationProtocol == null){
-            applicationProtocol = "hq-" + quicVersion.toString().substring(quicVersion.toString().length() - 2);
+            applicationProtocol = "h3-" + quicVersion.toString().substring(quicVersion.toString().length() - 2);
 
         }
         System.out.println("-----------handsahke-------------");
@@ -128,45 +132,78 @@ public class Client {
     }
 
     public static void startHandshake(String applicationProtocol) throws QuicException, IOException {
-        TransportParameters transportParameters = new TransportParameters(60,250_000,3,3);
+        TransportParameters transportParameters = new TransportParameters(30,250_000,3,3);
         byte[] clientHello = createClientHello(connectionId, publicKey, applicationProtocol,transportParameters);
         System.out.println("client-hello = "+clientHello.length);
-        //tlsState.clientHelloSend(privateKey, clientHello);
+       //System.out.println("private key = "+privateKey.getS());
+        byte[] privateKeyHex= privateKey.getEncoded();
+        String hex = Util.bytesArrayToHex(privateKeyHex);
+
+        String publicKeyHex = publicKey.toString();
+        SecretKeySpec secretKey = new SecretKeySpec(connectionSecrets.getServerSecrets(EncryptionLevel.Initial).getWriteKey(), "AES");
+        //System.out.println("private key = "+Util.bytesArrayToHex(secretKey.getEncoded()));
+        for(byte x:privateKeyHex){
+            System.out.print(x+" ");
+        }
+        System.out.println();
+        System.out.println("private key = "+hex);
+        System.out.println("public key = "+publicKeyHex);
+        tlsState.clientHelloSend(privateKey, clientHello);
         QuicFrame cryptoFrame = new QuicCryptoFrame(0,clientHello);
         System.out.println(cryptoFrame.encode().length);
         System.out.println("----------------------------");
-        QuicInitialPacket clientHelloPacket = (QuicInitialPacket) Util.createPacket(EncryptionLevel.Initial, cryptoFrame,connectionId.getBytes(),1,4278190080L+25,"12".getBytes());
+        QuicInitialPacket clientHelloPacket = (QuicInitialPacket) Util.createPacket(EncryptionLevel.Initial, cryptoFrame,Util.hexStringToByteArray(destianation,0),1,4278190080L+25,"12".getBytes());
         // Initial packet should at least be 1200 bytes (https://tools.ietf.org/html/draft-ietf-quic-transport-18#section-14)
         //clientHelloPacket.ensureSize(1200);
 
         //connectionState = Status.Handshaking;
         DatagramSocket ds = new DatagramSocket();
 
-        InetAddress ip = InetAddress.getByName("216.155.158.183");
+       // InetAddress ip = InetAddress.getByName("216.155.158.183");
+        InetAddress ip  = InetAddress.getByName("185.92.221.97");
         byte buf[] = clientHelloPacket.specialEncode();
         for(byte x : buf){
-            System.out.println(x);
+            System.out.print(x+" ");
         }
+        System.out.println();
 
         System.out.println("----------------------------");
         //QuicPacket.decode(buf);
 
-        DatagramPacket DpSend = new DatagramPacket(buf, buf.length,ip, 4433);
+        DatagramPacket DpSend = new DatagramPacket(buf, buf.length,ip, 8443);
         ds.send(DpSend);
+        try {
+            TimeUnit.SECONDS.sleep(1);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        byte[] b1 = new byte[2048];
+        DatagramPacket DpRecv = new DatagramPacket(b1,b1.length);
+        ds.receive(DpRecv);
+        byte[] recv = DpRecv.getData();
+        System.out.println("--------------------------------------");
+        int count =0;
+        for(byte x : b1){
+
+                System.out.print(Util.byteToHex(x) + " ");
+
+        }
+        System.out.println();
+        QuicPacket.specialDecode(b1);
         //sender.send(clientHelloPacket, "client hello", p -> {});
     }
 
     public static byte[] createClientHello(String host, ECPublicKey publicKey, String alpnProtocol, TransportParameters transportParams) {
-        boolean compatibilityMode = false;
+        boolean compatibilityMode = true;
         byte[][] supportedCiphers = new byte[][]{ TlsConstants.TLS_AES_256_GCM_SHA384 };
 
         List<Extension> quicExtensions = new ArrayList<>();
         quicExtensions.add(new QuicTransportParametersExtension(Version.IETF_draft_25, transportParams));
         quicExtensions.add(new ApplicationLayerProtocolNegotiationExtension(alpnProtocol));
 
-//        if (sessionTicket != null) {
-//            quicExtensions.add(new ClientHelloPreSharedKeyExtension(tlsState, sessionTicket));
-//        }
+        if (sessionTicket != null) {
+            quicExtensions.add(new ClientHelloPreSharedKeyExtension(tlsState, sessionTicket));
+        }
 
         ClientHello clientHello = new ClientHello(host, publicKey, compatibilityMode, supportedCiphers, quicExtensions);
         connectionSecrets.setClientRandom(clientHello.getClientRandom());

@@ -44,6 +44,9 @@ public abstract class QuicPacket {
         this.setDcID(dcID);
         this.setPacketNumber(packetNumber);
         this.setDcIdSize(dcID.length);
+        if(frames==null){
+            throw new NullPointerException();
+        }
         if(frames!=null && frames.size()==0){
             throw new IllegalArgumentException();
         }
@@ -83,6 +86,50 @@ public abstract class QuicPacket {
 
     public static QuicPacket decode(byte[] arr, int dcIdSize) throws QuicException {
         return Util.quicShortHeaderDecoder(arr,dcIdSize);
+    }
+
+    public static QuicPacket specialDecode(byte[] arr) throws QuicException{
+        int headerArry[] = new int[8];
+        int headerByte=0;
+        try {
+            System.out.println("---------------------------------------");
+            headerByte = (int) arr[0];
+            if (headerByte < 0) {
+                headerByte += 256;
+            }
+
+            for (int c = 7; c >= 0; c--) {
+                int x = (int) Math.pow(2, c);
+                if ((x & headerByte) == 0) {
+                    headerArry[7 - c] = 0;
+                } else {
+                    headerArry[7 - c] = 1;
+                }
+            }
+            System.out.println("headerByte = " + headerByte);
+        }catch (Exception e){
+            System.out.println("Exception khaisi "+ e);
+        }
+        if (headerArry[0] == 0) {
+            //shortheader
+            return decode(arr,getDcIdSize());
+        } else if (headerArry[0] == 1) {                          //Long header
+            if (headerArry[2] == 0 && headerArry[3] == 0) {
+                //intialpacket
+                return Util.specialQuicInitialPacketDecorder(arr,headerByte,headerArry);
+            } else if (headerArry[2] == 0 && headerArry[3] == 1) {
+                //0-RTT
+                return Util.quicLongHeaderPacketDecoder(1, arr, headerByte, headerArry);
+            } else if (headerArry[2] == 1 && headerArry[3] == 0) {
+                //handshake
+                return Util.quicLongHeaderPacketDecoder(2, arr, headerByte, headerArry);
+
+            } else {
+                throw new QuicException(0, 0, "header byte invalid");
+            }
+
+        }
+        throw new QuicException(0,0,"invalid data");
     }
 
     /**
