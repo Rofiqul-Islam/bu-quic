@@ -4,11 +4,8 @@ import org.junit.jupiter.api.*;
 import quic.exception.QuicException;
 import quic.frame.*;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
+import java.io.ByteArrayOutputStream;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
@@ -18,39 +15,11 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
 /**
- * Tests for the QuicInitialPacket class
+ *  QuicInitialPacket class tests
  *
- * @author Denton Wood
+ * @author Sarjan Kabir
  */
-public class QuicInitialPacketTest {
-    public static final Charset CHARSET = StandardCharsets.UTF_8;
-
-    public static Stream<byte[]> getValidConnectionIds() {
-        return Stream.of(new byte[0], "a".getBytes(CHARSET), "abc".getBytes(CHARSET), "#$%^&*".getBytes(CHARSET), "0".getBytes(CHARSET), "287340932".getBytes(CHARSET), "1234567890".getBytes(CHARSET));
-    }
-
-    public static Stream<byte[]> getInvalidConnectionIds() {
-        return Stream.of(new byte[21], "asdfgasdfghjklhjklaslkdjf".getBytes(CHARSET), "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".getBytes(CHARSET), "DYFUGHIJH34567890DTYUIKslerj".getBytes(CHARSET));
-    }
-
-    public static Stream<Long> getValidPacketNumbers() {
-        return Stream.of(0L, 1L, 27L, (long) Integer.MAX_VALUE, (long) Math.pow(2, 32) - 1);
-    }
-
-    public static Stream<Long> getInvalidPacketNumbers() {
-        return Stream.of(-1L, -27L, Long.MIN_VALUE);
-    }
-
-    public static long CURRENT_VERSION = 25;
-
-    public static Stream<Long> getValidVersions() {
-        return Stream.of(0L, 1L, 23L, 24L, 25L, 26L, (long) Integer.MAX_VALUE);
-    }
-
-    public static Stream<Long> getInvalidVersions() {
-        return Stream.of(-1L, -62L, Long.MIN_VALUE, Long.MAX_VALUE);
-    }
-
+public class QuicInitialPacketTest extends QuicPacketTest {
     public static int BASE_HEADER_BYTE = 192;
 
     public Set<QuicFrame> frames;
@@ -71,10 +40,10 @@ public class QuicInitialPacketTest {
                                     "dcid = " + dcId + ", packet # = " + packetNumber + ", version = "
                                             + version + ", scid = " + scId, () -> {
                                         QuicInitialPacket packet = new QuicInitialPacket(dcId, packetNumber, version, scId, frames);
-                                        assertEquals(dcId, packet.getDcID());
+                                        assertArrayEquals(dcId, packet.getDcID());
                                         assertEquals(packetNumber, packet.getPacketNumber());
                                         assertEquals(version, packet.getVersion());
-                                        assertEquals(scId, packet.getScID());
+                                        assertArrayEquals(scId, packet.getScID());
                                         assertEquals(1, packet.getFrames().size());
                                     })))));
         }
@@ -143,7 +112,7 @@ public class QuicInitialPacketTest {
         public Stream<DynamicTest> testValidDestinationIds() {
             return getValidConnectionIds().map(dcId -> dynamicTest("dcId = " + dcId, () -> {
                 packet.setDcID(dcId);
-                assertEquals(dcId, packet.getDcID());
+                assertArrayEquals(dcId, packet.getDcID());
             }));
         }
 
@@ -158,7 +127,7 @@ public class QuicInitialPacketTest {
         public Stream<DynamicTest> testValidSourceIds() {
             return getValidConnectionIds().map(scId -> dynamicTest("scId = " + scId, () -> {
                 packet.setScID(scId);
-                assertEquals(scId, packet.getScID());
+                assertArrayEquals(scId, packet.getScID());
             }));
         }
 
@@ -221,12 +190,10 @@ public class QuicInitialPacketTest {
                 this.packet = new QuicInitialPacket("a".getBytes(CHARSET), 0, 0, "b".getBytes(CHARSET), frameSet);
                 for (int i = 0; i < numFrames; i++) {
                     QuicFrame frame = null;
-                    if (i % 3 == 0) {
+                    if (i % 2 == 0) {
                         frame = new QuicAckFrame(i, i, i, i);
-                    } else if (i % 3 == 1) {
-                        frame = new QuicCryptoFrame(i, "data".getBytes(CHARSET));
                     } else {
-                        frame = new QuicConnectionCloseFrame(i + 100, i % 30, "reason");
+                        frame = new QuicCryptoFrame(i, "data".getBytes(CHARSET));
                     }
                     frameSet.add(frame);
                     packet.addFrame(frame);
@@ -336,12 +303,10 @@ public class QuicInitialPacketTest {
                 Set<QuicFrame> frameSet = new HashSet<>(frames);
                 for (int i = 0; i < numFrames; i++) {
                     QuicFrame frame;
-                    if (i % 3 == 0) {
+                    if (i % 2 == 0) {
                         frame = new QuicAckFrame(i, i, i, i);
-                    } else if (i % 3 == 1) {
-                        frame = new QuicCryptoFrame(i, "data".getBytes());
                     } else {
-                        frame = new QuicConnectionCloseFrame(i, i, "reason");
+                        frame = new QuicCryptoFrame(i, "data".getBytes());
                     }
                     packet.addFrame(frame);
                     frameSet.add(frame);

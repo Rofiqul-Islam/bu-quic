@@ -6,9 +6,6 @@ import quic.frame.*;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
@@ -22,35 +19,7 @@ import static org.junit.jupiter.api.DynamicTest.dynamicTest;
  *
  * @author Denton Wood
  */
-public class QuicZeroRTTPacketTest {
-    public static final Charset CHARSET = StandardCharsets.UTF_8;
-
-    public static Stream<byte[]> getValidConnectionIds() {
-        return Stream.of(new byte[0], "a".getBytes(CHARSET), "abc".getBytes(CHARSET), "#$%^&*".getBytes(CHARSET), "0".getBytes(CHARSET), "287340932".getBytes(CHARSET), "1234567890".getBytes(CHARSET));
-    }
-
-    public static Stream<byte[]> getInvalidConnectionIds() {
-        return Stream.of(new byte[21], "asdfgasdfsa;lkjdfghjklhjkl".getBytes(CHARSET), "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".getBytes(CHARSET), "DYFUGHIJH34567890DTYUIKslerj".getBytes(CHARSET));
-    }
-
-    public static Stream<Long> getValidPacketNumbers() {
-        return Stream.of(0L, 1L, 27L, (long) Integer.MAX_VALUE, (long) Math.pow(2, 32) - 1);
-    }
-
-    public static Stream<Long> getInvalidPacketNumbers() {
-        return Stream.of(-1L, -27L, Long.MIN_VALUE, Long.MAX_VALUE);
-    }
-
-    public static long CURRENT_VERSION = 25;
-
-    public static Stream<Long> getValidVersions() {
-        return Stream.of(0L, 1L, 23L, 24L, 25L, 26L, (long) Integer.MAX_VALUE);
-    }
-
-    public static Stream<Long> getInvalidVersions() {
-        return Stream.of(-1L, -62L, Long.MIN_VALUE, Long.MAX_VALUE);
-    }
-
+public class QuicZeroRTTPacketTest extends QuicPacketTest {
     public static final int BASE_HEADER_BYTE = 208;
 
     public Set<QuicFrame> frames;
@@ -71,10 +40,10 @@ public class QuicZeroRTTPacketTest {
                                     "dcid = " + dcId + ", packet # = " + packetNumber + ", version = "
                                             + version + ", scid = " + scId, () -> {
                                         QuicZeroRTTPacket packet = new QuicZeroRTTPacket(dcId, packetNumber, version, scId, frames);
-                                        assertEquals(dcId, packet.getDcID());
+                                        assertArrayEquals(dcId, packet.getDcID());
                                         assertEquals(packetNumber, packet.getPacketNumber());
                                         assertEquals(version, packet.getVersion());
-                                        assertEquals(scId, packet.getScID());
+                                        assertArrayEquals(scId, packet.getScID());
                                         assertEquals(1, packet.getFrames().size());
                                     })))));
         }
@@ -143,7 +112,7 @@ public class QuicZeroRTTPacketTest {
         public Stream<DynamicTest> testValidDestinationIds() {
             return getValidConnectionIds().map(dcId -> dynamicTest("dcId = " + dcId, () -> {
                 this.packet.setDcID(dcId);
-                assertEquals(dcId, this.packet.getDcID());
+                assertArrayEquals(dcId, this.packet.getDcID());
             }));
         }
 
@@ -158,7 +127,7 @@ public class QuicZeroRTTPacketTest {
         public Stream<DynamicTest> testValidSourceIds() {
             return getValidConnectionIds().map(scId -> dynamicTest("scId = " + scId, () -> {
                 this.packet.setScID(scId);
-                assertEquals(scId, packet.getScID());
+                assertArrayEquals(scId, packet.getScID());
             }));
         }
 

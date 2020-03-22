@@ -6,6 +6,7 @@ import quic.util.Util;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.nio.ByteBuffer;
 import java.util.*;
 
 /**
@@ -138,6 +139,48 @@ public abstract class QuicPacket {
      * @param arr array of bytes of some packet
      * @return packet.QuicPacket
      */
+    public static QuicPacket changedDecode(byte[] arr) throws QuicException{
+        ByteBuffer input = ByteBuffer.allocate(arr.length);
+        input.put(arr);
+        input.flip();
+        int headerByte = input.get();
+        if (headerByte < 0) {
+            headerByte += 256;
+        }
+        if (headerByte < 0x40) {
+            throw new QuicException(0, 0, "Invalid header byte");
+        }
+        if((headerByte & 12) != 0){
+            throw new QuicException(0, 0, "Invalid header byte");
+        }
+        if((headerByte & 64) ==0){
+            throw new QuicException(0, 0, "Invalid header byte");
+        }
+
+        System.out.println("headerByte = " + headerByte);
+        if((headerByte & 128) ==0){
+            //shortheader
+
+        }else {
+            //longheader
+            if((headerByte & 48)==0){
+                //intial packet
+               return Util.changedInitialPacketDecorder(input);
+            }
+            else if((headerByte & 48) == 16){
+                // 0-RTT type = 1
+                return Util.changedLongHeaderPacketDecoder(input,1);
+            }
+            else if((headerByte & 48)==32){
+                //handshake type = 2
+                return Util.changedLongHeaderPacketDecoder(input,2);
+
+            }
+        }
+
+        return null;
+
+    }
 
     public static QuicPacket decode(byte[] arr) throws QuicException {
         int headerArry[] = new int[8];

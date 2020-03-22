@@ -1,13 +1,21 @@
 package quic.frame;
 
+import net.luminis.tls.HandshakeRecord;
+import net.luminis.tls.Message;
+import net.luminis.tls.TlsProtocolException;
 import quic.exception.QuicException;
+import quic.main.EncryptionLevel;
 import quic.util.DecodedFrame;
 import quic.util.Util;
 
 import java.io.*;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
+
+import static quic.main.Client.connectionSecrets;
+import static quic.main.Client.tlsState;
 
 /**
  * Represents a QUIC frame.
@@ -280,6 +288,17 @@ public abstract class QuicFrame {
                 result.add(decodedFrame.getQuicFrame());
                 index=decodedFrame.getInderx();
                 System.out.println("Crypto data = "+Util.bytesArrayToHex(cryptoFrame.getData()));
+                ByteBuffer b = ByteBuffer.allocate(cryptoFrame.getData().length);
+                b.put(cryptoFrame.getData());
+                b.rewind();
+                try {
+                    Message tlsMessage = HandshakeRecord.parseHandshakeMessage(b,tlsState);
+                    System.out.println("tls message="+tlsMessage);
+                    connectionSecrets.computeHandshakeSecrets(tlsState);
+                    System.out.println("handShake secret="+Util.bytesArrayToHex(connectionSecrets.getClientSecrets(EncryptionLevel.Handshake).getTrafficSecret()));
+                } catch (TlsProtocolException e) {
+                    e.printStackTrace();
+                }
             }
             else if(headerByte>=8 && headerByte<=15){          //Stream frame
                 DecodedFrame decodedFrame = Util.quicStreamFrameDecoder(arr,headerByte,index);

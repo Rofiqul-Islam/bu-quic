@@ -279,10 +279,47 @@ public class Util {
 
         return null;
     }
+    public static QuicPacket changedInitialPacketDecorder(ByteBuffer input) throws QuicException {
+        byte[] versionArray = new byte[4];
+        input.get(versionArray,0,versionArray.length);
+        long version = Util.variableLengthInteger(versionArray,0);
+        ////////////////////////
+        int dcIdLen = input.get();
+        byte[] dcId = new byte[dcIdLen];
+        input.get(dcId,0,dcIdLen);
+        ////////////////////////////////
+        int scIdLen = input.get();
+        byte[] scId = new byte[scIdLen];
+        input.get(scId,0,scIdLen);
+        /////////////////////////////////
+        int tokenLength = Util.variableLengthIntegerLength(input.get());
+        byte[] token = new byte[tokenLength];
+        input.position(input.position()-1);
+        input.get(token,0,tokenLength);
+        ///////////////////////////////////////////////
+        int lengthLen = Util.variableLengthIntegerLength(input.get());
+        input.position(input.position()-1);
+        byte[] lenghtArray = new byte[lengthLen];
+        input.get(lenghtArray,0,lengthLen);
+        long length = Util.variableLengthInteger(lenghtArray,1);
+        /////////////////////////
+        int packetNumberLen =(input.get(0)&3)+1;
+        byte[] packetNumberArray = new byte[packetNumberLen];
+        input.get(packetNumberArray,0,packetNumberLen);
+        long packetNumber = Util.variableLengthInteger(packetNumberArray,0);
+        /////////////////////////////////
+        byte[] frameSet = new byte[(int)(length - packetNumberLen)];
+        input.get(frameSet,0,(int)(length - packetNumberLen));
+        System.out.println(input.position()+" "+input.limit());
+
+        Set<QuicFrame> temp = new HashSet<>();
+        temp.add(QuicFrame.decode(frameSet));
+        QuicPacket initialPacket = new QuicInitialPacket(dcId, packetNumber, version, scId, temp);
+        return initialPacket;
+    }
 
     public static QuicPacket specialQuicInitialPacketDecorder(byte[] arr, int headerByte, int headerArray[]) throws QuicException{
 
-        System.out.println("aikhane ashsi");
         try {
             int p = 1;
             byte[] version_arr = new byte[4];
@@ -487,6 +524,44 @@ public class Util {
             throw new QuicException(100,0,"longheader decoder error");
         }
 
+        return null;
+    }
+    public static QuicPacket changedLongHeaderPacketDecoder(ByteBuffer input,int type) throws QuicException {
+        byte[] versionArray = new byte[4];
+        input.get(versionArray,0,versionArray.length);
+        long version = Util.variableLengthInteger(versionArray,0);
+        ////////////////////////
+        int dcIdLen = input.get();
+        byte[] dcId = new byte[dcIdLen];
+        input.get(dcId,0,dcIdLen);
+        ////////////////////////////////
+        int scIdLen = input.get();
+        byte[] scId = new byte[scIdLen];
+        input.get(scId,0,scIdLen);
+        ///////////////////////////////////////////////
+        int lengthLen = Util.variableLengthIntegerLength(input.get());
+        input.position(input.position()-1);
+        byte[] lenghtArray = new byte[lengthLen];
+        input.get(lenghtArray,0,lengthLen);
+        long length = Util.variableLengthInteger(lenghtArray,1);
+        /////////////////////////
+        int packetNumberLen =(input.get(0)&3)+1;
+        byte[] packetNumberArray = new byte[packetNumberLen];
+        input.get(packetNumberArray,0,packetNumberLen);
+        long packetNumber = Util.variableLengthInteger(packetNumberArray,0);
+        /////////////////////////////////
+        byte[] frameSet = new byte[(int)(length - packetNumberLen)];
+        input.get(frameSet,0,(int)(length - packetNumberLen));
+        System.out.println(input.position()+" "+input.limit());
+
+        Set<QuicFrame> temp = new HashSet<>();
+        temp.add(QuicFrame.decode(frameSet));
+        if (type == 1) {
+            QuicPacket zeroRttPacket = new QuicZeroRTTPacket(dcId, packetNumber, version, scId, temp);
+            return zeroRttPacket;
+        } else if (type == 2) {
+            return new QuicHandshakePacket(dcId, packetNumber, version, scId, temp);
+        }
         return null;
     }
 
