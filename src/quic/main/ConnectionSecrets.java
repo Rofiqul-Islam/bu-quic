@@ -71,9 +71,7 @@ public class ConnectionSecrets {
         log.secret("Initial secret", initialSecret);
 
         clientSecrets[quic.main.EncryptionLevel.Initial.ordinal()] = new Keys(quicVersion, initialSecret, NodeRole.Client, log);
-        System.out.println(clientSecrets[quic.main.EncryptionLevel.Initial.ordinal()]);
         serverSecrets[EncryptionLevel.Initial.ordinal()] = new Keys(quicVersion, initialSecret, NodeRole.Server, log);
-        System.out.println(serverSecrets[EncryptionLevel.Initial.ordinal()]);
     }
 
     public synchronized void computeHandshakeSecrets(TlsState tlsState) {
