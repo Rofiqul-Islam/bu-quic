@@ -15,7 +15,7 @@ import quic.exception.QuicException;
 class QuicAckFrameTest extends QuicFrame {
 	
 	ArrayList<QuicAckRange> ackRanges = new ArrayList<>();
-	private QuicAckFrame quicAckFrameTest = new QuicAckFrame(-1, -1, -1, -1);
+	private QuicAckFrame quicAckFrameTest = new QuicAckFrame(10, 10, 0, 10);
 
 	@BeforeAll
 	static void setUpBeforeClass() throws Exception {
@@ -101,8 +101,8 @@ class QuicAckFrameTest extends QuicFrame {
 	@Test 
 	void testDecode() throws QuicException, IOException {
 		byte [] data = quicAckFrameTest.encode();
-		QuicAckFrame decodedFrame = (QuicAckFrame) super.decode(data);
-		assertEquals(this.quicAckFrameTest, decodedFrame, "Encode and decode miss matches");
+		QuicAckFrame decodedFrame = (QuicAckFrame) QuicFrame.decode(data);
+		assertEquals(this.quicAckFrameTest, decodedFrame);
 	}
 
 	@Override

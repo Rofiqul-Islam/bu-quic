@@ -1,5 +1,6 @@
 package quic.frame;
 
+import quic.exception.QuicException;
 import quic.util.Util;
 
 import java.io.ByteArrayOutputStream;
@@ -61,32 +62,32 @@ public class QuicAckFrame extends QuicFrame implements Serializable {
     }
 
     @Override
-    public byte[] encode()throws IOException {
+    public byte[] encode() throws IOException{
     	
-    	ByteArrayOutputStream bufferOutputStream = new ByteArrayOutputStream();
-	    ObjectOutputStream objectOutputStream = new ObjectOutputStream(bufferOutputStream);
+    	ByteArrayOutputStream encoding = new ByteArrayOutputStream();
+
 		
 	    try {
-	    	objectOutputStream.writeObject(Util.hexStringToByteArray("2",1));
-	    	objectOutputStream.writeObject(Util.generateVariableLengthInteger(this.getLargestAck()));
-	    	objectOutputStream.writeObject(Util.generateVariableLengthInteger(this.getDelay()));
-	    	objectOutputStream.writeObject(Util.generateVariableLengthInteger(this.getRangeCount()));
-	    	objectOutputStream.writeObject(Util.generateVariableLengthInteger(this.getFirstAckRange()));
+	    	encoding.write(Util.hexStringToByteArray("2",1));
+	    	encoding.write(Util.generateVariableLengthInteger(this.getLargestAck()));
+	    	encoding.write(Util.generateVariableLengthInteger(this.getDelay()));
+	    	encoding.write(Util.generateVariableLengthInteger(this.getRangeCount()));
+	    	encoding.write(Util.generateVariableLengthInteger(this.getFirstAckRange()));
 
             Iterator<QuicAckRange> x = this.getAckRanges().iterator();
             while(x.hasNext()){
-                objectOutputStream.writeObject(x.next());
+                QuicAckRange quicAckRange = x.next();
+                encoding.write(Util.generateVariableLengthInteger(quicAckRange.getGap()));
+                encoding.write(Util.generateVariableLengthInteger(quicAckRange.getAckRange()));
             }
-	    	objectOutputStream.flush();
+
 	    	
-		} catch (IOException e) {
-			
-			e.printStackTrace();
+		} catch (Exception e) {
+
 		}
+
 	    
-	    byte [] data = bufferOutputStream.toByteArray();
-	    
-        return data;
+        return encoding.toByteArray();
     }
 
 

@@ -274,6 +274,7 @@ public abstract class QuicFrame {
 
         while(index < arr.length -1){
             System.out.println("---------------------New frame-----------------");
+            System.out.println("array lenght = "+arr.length);
             System.out.println("index = "+index);
             byte headerByte = arr[index];
             System.out.println("header byte = "+headerByte );
@@ -309,6 +310,9 @@ public abstract class QuicFrame {
                 DecodedFrame decodedFrame = Util.quicConnectionCloseFrameDecoder(arr, index);
                 result.add(decodedFrame.getQuicFrame());
                 index=decodedFrame.getInderx();
+            }
+            else{
+                return result;
             }
         }
         return result;

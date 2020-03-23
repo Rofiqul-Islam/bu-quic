@@ -67,12 +67,6 @@ public class ConnectionSecrets {
 
         byte[] initialSalt = STATIC_SALT_DRAFT_23;
         byte[] initialSecret = hkdf.extract(initialSalt, destConnectionId);
-        int c=0;
-        for(byte x:initialSecret){
-            System.out.println(Util.byteToHex(x));
-            c++;
-        }
-        //System.out.println(c);
 
         log.secret("Initial secret", initialSecret);
 

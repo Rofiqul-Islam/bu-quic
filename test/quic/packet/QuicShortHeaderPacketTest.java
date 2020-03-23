@@ -178,7 +178,7 @@ public class QuicShortHeaderPacketTest extends QuicPacketTest {
         out.write((int) number);
     }
 
-    public byte[] writeBytes(int headerByte, byte[] dcId, long packetNum, Set<QuicFrame> frames) throws IOException {
+    public byte[] writeBytes(int headerByte, byte[] dcId, long packetNum, Set<QuicFrame> frames) throws IOException, QuicException {
         ByteArrayOutputStream encoding = new ByteArrayOutputStream();
         // Write header byte (packet number of 0)
         encoding.write(headerByte);
@@ -249,7 +249,12 @@ public class QuicShortHeaderPacketTest extends QuicPacketTest {
             byte[] scId = "88888888888888888888".getBytes(CHARSET);
             long packetNumber = 27;
             QuicShortHeaderPacket packet = new QuicShortHeaderPacket(dcId, packetNumber, frames);
-            byte[] encoding = writeBytes(BASE_HEADER_BYTE,  dcId,packetNumber,  frames);
+            byte[] encoding = new byte[0];
+            try {
+                encoding = writeBytes(BASE_HEADER_BYTE,  dcId,packetNumber,  frames);
+            } catch (QuicException e) {
+                e.printStackTrace();
+            }
             assertArrayEquals(encoding, packet.encode());
         }
 

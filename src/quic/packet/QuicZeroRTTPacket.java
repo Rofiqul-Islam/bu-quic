@@ -1,5 +1,6 @@
 package quic.packet;
 
+import quic.exception.QuicException;
 import quic.frame.QuicFrame;
 import quic.util.Util;
 
