@@ -93,7 +93,6 @@ public abstract class QuicPacket {
         int headerArry[] = new int[8];
         int headerByte=0;
         try {
-            System.out.println("---------------------------------------");
             headerByte = (int) arr[0];
             if (headerByte < 0) {
                 headerByte += 256;
@@ -107,9 +106,8 @@ public abstract class QuicPacket {
                     headerArry[7 - c] = 1;
                 }
             }
-            System.out.println("headerByte = " + headerByte);
         }catch (Exception e){
-            System.out.println("Exception khaisi "+ e);
+            throw new QuicException(10,0,"Header Byte Exception");
         }
         if (headerArry[0] == 0) {
             //shortheader
@@ -117,13 +115,19 @@ public abstract class QuicPacket {
         } else if (headerArry[0] == 1) {                          //Long header
             if (headerArry[2] == 0 && headerArry[3] == 0) {
                 //intialpacket
+                System.out.println("Initial packet recieved");
+                System.out.println("headerByte = " + headerByte);
                 return Util.specialQuicInitialPacketDecorder(arr,headerByte,headerArry);
             } else if (headerArry[2] == 0 && headerArry[3] == 1) {
                 //0-RTT
-                return Util.quicLongHeaderPacketDecoder(1, arr, headerByte, headerArry);
+                System.out.println("0-RTT packet recieved");
+                System.out.println("headerByte = " + headerByte);
+                return Util.specialQuicLongHeaderPacketDecorder(1, arr, headerByte, headerArry);
             } else if (headerArry[2] == 1 && headerArry[3] == 0) {
                 //handshake
-                return Util.quicLongHeaderPacketDecoder(2, arr, headerByte, headerArry);
+                System.out.println("Handshake packet recieved");
+                System.out.println("headerByte = " + headerByte);
+                return Util.specialQuicLongHeaderPacketDecorder(2, arr, headerByte, headerArry);
 
             } else {
                 throw new QuicException(0, 0, "header byte invalid");
@@ -139,48 +143,6 @@ public abstract class QuicPacket {
      * @param arr array of bytes of some packet
      * @return packet.QuicPacket
      */
-    public static QuicPacket changedDecode(byte[] arr) throws QuicException{
-        ByteBuffer input = ByteBuffer.allocate(arr.length);
-        input.put(arr);
-        input.flip();
-        int headerByte = input.get();
-        if (headerByte < 0) {
-            headerByte += 256;
-        }
-        if (headerByte < 0x40) {
-            throw new QuicException(0, 0, "Invalid header byte");
-        }
-        if((headerByte & 12) != 0){
-            throw new QuicException(0, 0, "Invalid header byte");
-        }
-        if((headerByte & 64) ==0){
-            throw new QuicException(0, 0, "Invalid header byte");
-        }
-
-        System.out.println("headerByte = " + headerByte);
-        if((headerByte & 128) ==0){
-            //shortheader
-
-        }else {
-            //longheader
-            if((headerByte & 48)==0){
-                //intial packet
-               return Util.changedInitialPacketDecorder(input);
-            }
-            else if((headerByte & 48) == 16){
-                // 0-RTT type = 1
-                return Util.changedLongHeaderPacketDecoder(input,1);
-            }
-            else if((headerByte & 48)==32){
-                //handshake type = 2
-                return Util.changedLongHeaderPacketDecoder(input,2);
-
-            }
-        }
-
-        return null;
-
-    }
 
     public static QuicPacket decode(byte[] arr) throws QuicException {
         int headerArry[] = new int[8];
@@ -192,13 +154,13 @@ public abstract class QuicPacket {
                 headerByte += 256;
             }
             if (headerByte < 64) {
-                throw new QuicException(0, 0, "Invalid header byte");
+                throw new QuicException(10, 0, "Invalid header byte");
             }
             if((headerByte & 12) != 0){
-                throw new QuicException(0, 0, "Invalid header byte");
+                throw new QuicException(10, 0, "Invalid header byte");
             }
             if((headerByte & 64) ==0){
-                throw new QuicException(0, 0, "Invalid header byte");
+                throw new QuicException(10, 0, "Invalid header byte");
             }
             for (int c = 7; c >= 0; c--) {
                 int x = (int) Math.pow(2, c);
@@ -210,7 +172,7 @@ public abstract class QuicPacket {
             }
             System.out.println("headerByte = " + headerByte);
         } catch (Exception e) {
-            throw new QuicException(0, 0, "invalid input");
+            throw new QuicException(10, 0, "invalid header byte");
         }
         if (headerArry[0] == 0) {
             //shortheader

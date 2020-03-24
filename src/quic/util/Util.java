@@ -279,44 +279,6 @@ public class Util {
 
         return null;
     }
-    public static QuicPacket changedInitialPacketDecorder(ByteBuffer input) throws QuicException {
-        byte[] versionArray = new byte[4];
-        input.get(versionArray,0,versionArray.length);
-        long version = Util.variableLengthInteger(versionArray,0);
-        ////////////////////////
-        int dcIdLen = input.get();
-        byte[] dcId = new byte[dcIdLen];
-        input.get(dcId,0,dcIdLen);
-        ////////////////////////////////
-        int scIdLen = input.get();
-        byte[] scId = new byte[scIdLen];
-        input.get(scId,0,scIdLen);
-        /////////////////////////////////
-        int tokenLength = Util.variableLengthIntegerLength(input.get());
-        byte[] token = new byte[tokenLength];
-        input.position(input.position()-1);
-        input.get(token,0,tokenLength);
-        ///////////////////////////////////////////////
-        int lengthLen = Util.variableLengthIntegerLength(input.get());
-        input.position(input.position()-1);
-        byte[] lenghtArray = new byte[lengthLen];
-        input.get(lenghtArray,0,lengthLen);
-        long length = Util.variableLengthInteger(lenghtArray,1);
-        /////////////////////////
-        int packetNumberLen =(input.get(0)&3)+1;
-        byte[] packetNumberArray = new byte[packetNumberLen];
-        input.get(packetNumberArray,0,packetNumberLen);
-        long packetNumber = Util.variableLengthInteger(packetNumberArray,0);
-        /////////////////////////////////
-        byte[] frameSet = new byte[(int)(length - packetNumberLen)];
-        input.get(frameSet,0,(int)(length - packetNumberLen));
-        System.out.println(input.position()+" "+input.limit());
-
-        Set<QuicFrame> temp = new HashSet<>();
-        temp.add(QuicFrame.decode(frameSet));
-        QuicPacket initialPacket = new QuicInitialPacket(dcId, packetNumber, version, scId, temp);
-        return initialPacket;
-    }
 
     public static QuicPacket specialQuicInitialPacketDecorder(byte[] arr, int headerByte, int headerArray[]) throws QuicException{
 
@@ -328,7 +290,7 @@ public class Util {
                 version_arr[n - p] = arr[n];
             }
             long version = Util.variableLengthInteger(version_arr, 0);
-            System.out.println("version = " + version);
+            System.out.println("version = " + (version-4278190080l));
             p = n;
             ////////////////////////////
             int dcIdLenD = (int) arr[p];
@@ -391,7 +353,7 @@ public class Util {
             }
             byte[] mask  = ConnectionUtil.createHeaderProtectionMask(sample,4,connectionSecrets.getServerSecrets(EncryptionLevel.Initial));
             byte decryptedheaderByte =(byte) (headerByte ^ mask[0] & 0x0f);
-            System.out.println("decrypted header byte = "+decryptedheaderByte);
+            //System.out.println("decrypted header byte = "+decryptedheaderByte);
 
             ///////////////////////////////////////
             int packetNoLen = (decryptedheaderByte & 3) + 1;
@@ -417,6 +379,7 @@ public class Util {
             packetNum = decodePacketNumber(packetNum,largestPacketNumber,packetNoLen*8);
             System.out.println("packetNumber = " + packetNum);
             /////////
+            System.out.println("***** Payload start *****");
             byte[] frameSetD = new byte[(int) (length - packetNoLen)];
             int k = p;
 
@@ -425,11 +388,10 @@ public class Util {
                 //System.out.print(k + " ");
             }
             byte[] frameBytes = decryptPayload(frameSetD, frame_header,packetNum,connectionSecrets.getServerSecrets(EncryptionLevel.Initial));
-
             ////////////////
             p = k;
             Set<QuicFrame> temp = QuicFrame.specialDecorder(frameBytes);
-
+            System.out.println("***** Payload finsihed *****");
             QuicPacket initialPacket = new QuicInitialPacket(dcIdD, packetNum, version, scIdD, temp);
             //System.out.println(initialPacket.toString());
             return initialPacket;
@@ -442,6 +404,119 @@ public class Util {
 
     }
 
+    public static QuicPacket specialQuicLongHeaderPacketDecorder(int type, byte[] arr, int headerByte, int headerArray[]) throws QuicException{
+
+        try {
+            int p = 1;
+            byte[] version_arr = new byte[4];
+            int n = p;
+            for (; n < p + 4; n++) {
+                version_arr[n - p] = arr[n];
+            }
+            long version = Util.variableLengthInteger(version_arr, 0);
+            System.out.println("version = " + (version-4278190080l));
+            p = n;
+            ////////////////////////////
+            int dcIdLenD = (int) arr[p];
+            System.out.println("dcidlen = " + dcIdLenD);
+            p++;
+            byte[] dcIdD = new byte[dcIdLenD];
+            int i = p;
+            for (; i < p + dcIdLenD; i++) {
+                dcIdD[i - p] = arr[i];
+            }
+            System.out.print("dcId = ");
+            for (byte x : dcIdD) {
+                System.out.print(Util.byteToHex(x) + " ");
+            }
+            System.out.println();
+            p = i;
+            ///////////////////////////
+            int scIdLenD = (int) arr[p];
+            System.out.println("scidlen = " + scIdLenD);
+            p++;
+            byte[] scIdD = new byte[scIdLenD];
+            int j = p;
+            for (; j < p + scIdLenD; j++) {
+                scIdD[j - p] = arr[j];
+            }
+            System.out.print("scId = ");
+            for (byte x : scIdD) {
+                System.out.print(Util.byteToHex(x) + " ");
+            }
+            System.out.println();
+            p = j;
+            ////////////////////////////
+            int lengthSize = Util.variableLengthIntegerLength(arr[p]);
+            byte[] len_arr = new byte[lengthSize];
+            for (int c = p; c < lengthSize + p; c++) {
+                len_arr[c - p] = arr[c];
+            }
+            p += lengthSize;
+            long length = Util.variableLengthInteger(len_arr, 1);
+            System.out.println("length = " + length);
+            ///////////////////////////////////////
+            byte[] sample = new byte[16];
+            for(int c =p+4;c<p+20;c++){
+                sample[c-(p+4)] = arr[c];
+            }
+            byte[] mask  = ConnectionUtil.createHeaderProtectionMask(sample,4,connectionSecrets.getServerSecrets(EncryptionLevel.Initial));
+            byte decryptedheaderByte =(byte) (headerByte ^ mask[0] & 0x0f);
+            //System.out.println("decrypted header byte = "+decryptedheaderByte);
+
+            ///////////////////////////////////////
+            int packetNoLen = (decryptedheaderByte & 3) + 1;
+
+            byte[] packNum_arr = new byte[packetNoLen];
+            for (int c = p; c < packetNoLen + p; c++) {
+                packNum_arr[c - p] = arr[c];
+            }
+            //------------
+            byte[] frame_header = new byte[p+packetNoLen];
+            for(int c =0;c<p;c++){
+                frame_header[c]=arr[c];
+            }
+            frame_header[0]=decryptedheaderByte;
+            //--------------
+            p += packetNoLen;
+            byte[] unProcPackNum_arr = new byte[packetNoLen];
+            for(int k = 0;k<packetNoLen;k++){
+                unProcPackNum_arr[k] = (byte) (packNum_arr[k]^mask[k+1]);
+            }
+            System.arraycopy(unProcPackNum_arr,0,frame_header,p-packetNoLen,packetNoLen);
+            long packetNum = Util.variableLengthInteger(unProcPackNum_arr, 0);
+            packetNum = decodePacketNumber(packetNum,largestPacketNumber,packetNoLen*8);
+            System.out.println("packetNumber = " + packetNum);
+            /////////
+            System.out.println("***** Payload start *****");
+            byte[] frameSetD = new byte[(int) (length - packetNoLen)];
+            int k = p;
+
+            for (; k < p + (length - (packetNoLen)); k++) {
+                frameSetD[k - p] = arr[k];
+                //System.out.print(k + " ");
+            }
+            //byte[] frameBytes = decryptPayload(frameSetD, frame_header,packetNum,connectionSecrets.getServerSecrets(EncryptionLevel.Handshake));
+            ////////////////
+            p = k;
+            Set<QuicFrame> temp = QuicFrame.specialDecorder(frameSetD);
+            System.out.println("***** Payload finsihed *****");
+            if (type == 1) {
+                QuicPacket zeroRttPacket = new QuicZeroRTTPacket(dcIdD, packetNum, version, scIdD, temp);
+                return zeroRttPacket;
+            } else if (type == 2) {
+                return new QuicHandshakePacket(dcIdD, packetNum, version, scIdD, temp);
+            }
+            //System.out.println(initialPacket.toString());
+            return null;
+
+        }catch (Exception e){
+            e.printStackTrace();
+            //throw new QuicException(100,0,"initial packet decode error");
+        }
+        return null;
+
+    }
     public static QuicPacket quicLongHeaderPacketDecoder(int type, byte[] arr, int headerByte, int headerArry[]) throws QuicException {
         try {
             int p = 1;
@@ -451,7 +526,7 @@ public class Util {
                 version_arr[n - p] = arr[n];
             }
             long version = Util.variableLengthInteger(version_arr, 0);
-            System.out.println("version = " + version);
+            System.out.println("version = " + (version-4278190080l));
             p = n;
             ////////////////////////////
             int dcIdLenD = (int) arr[p];
@@ -503,6 +578,7 @@ public class Util {
             long packetNum = Util.variableLengthInteger(packNum_arr, 0);
             System.out.println("packetNumber = " + packetNum);
             /////////
+            System.out.println("***** Payload start *****");
             byte[] frameSetD = new byte[(int) (length - packetNoLen)];
             int k = p;
 
@@ -513,6 +589,7 @@ public class Util {
             p = k;
             Set<QuicFrame> temp = new HashSet<>();
             temp.add(QuicFrame.decode(frameSetD));
+            System.out.println("***** Payload finsihed *****");
 
             if (type == 1) {
                 QuicPacket zeroRttPacket = new QuicZeroRTTPacket(dcIdD, packetNum, version, scIdD, temp);
@@ -521,49 +598,13 @@ public class Util {
                 return new QuicHandshakePacket(dcIdD, packetNum, version, scIdD, temp);
             }
         }catch (Exception e){
+            e.printStackTrace();
             throw new QuicException(100,0,"longheader decoder error");
         }
 
         return null;
     }
-    public static QuicPacket changedLongHeaderPacketDecoder(ByteBuffer input,int type) throws QuicException {
-        byte[] versionArray = new byte[4];
-        input.get(versionArray,0,versionArray.length);
-        long version = Util.variableLengthInteger(versionArray,0);
-        ////////////////////////
-        int dcIdLen = input.get();
-        byte[] dcId = new byte[dcIdLen];
-        input.get(dcId,0,dcIdLen);
-        ////////////////////////////////
-        int scIdLen = input.get();
-        byte[] scId = new byte[scIdLen];
-        input.get(scId,0,scIdLen);
-        ///////////////////////////////////////////////
-        int lengthLen = Util.variableLengthIntegerLength(input.get());
-        input.position(input.position()-1);
-        byte[] lenghtArray = new byte[lengthLen];
-        input.get(lenghtArray,0,lengthLen);
-        long length = Util.variableLengthInteger(lenghtArray,1);
-        /////////////////////////
-        int packetNumberLen =(input.get(0)&3)+1;
-        byte[] packetNumberArray = new byte[packetNumberLen];
-        input.get(packetNumberArray,0,packetNumberLen);
-        long packetNumber = Util.variableLengthInteger(packetNumberArray,0);
-        /////////////////////////////////
-        byte[] frameSet = new byte[(int)(length - packetNumberLen)];
-        input.get(frameSet,0,(int)(length - packetNumberLen));
-        System.out.println(input.position()+" "+input.limit());
 
-        Set<QuicFrame> temp = new HashSet<>();
-        temp.add(QuicFrame.decode(frameSet));
-        if (type == 1) {
-            QuicPacket zeroRttPacket = new QuicZeroRTTPacket(dcId, packetNumber, version, scId, temp);
-            return zeroRttPacket;
-        } else if (type == 2) {
-            return new QuicHandshakePacket(dcId, packetNumber, version, scId, temp);
-        }
-        return null;
-    }
 
     public static QuicPacket quicShortHeaderDecoder(byte[] arr, int dcIdSize) throws QuicException {
         try {
@@ -625,8 +666,8 @@ public class Util {
 
     public static DecodedFrame quicAckFrameDecoder(byte[] arr, int index){
 
-        System.out.println("----------------- Ack frame---------------");
-
+        System.out.println("Frame Type  = ACK Frame");
+        System.out.println("header byte = "+(int)arr[index]);
         int p=index+1;
         int largestAckLen = Util.variableLengthIntegerLength(arr[p]);
         byte[] largestAck_arr = new byte[largestAckLen];
@@ -697,6 +738,8 @@ public class Util {
     }
 
     public static DecodedFrame quicStreamFrameDecoder(byte[] arr, byte headerByte,int index){
+        System.out.println("Frame Type  = Stream Frame");
+        System.out.println("header byte = "+(int)arr[index]);
         boolean offbit=false;
         boolean lenBit = false;
         boolean finBit = false;
@@ -751,7 +794,8 @@ public class Util {
     }
 
     public static DecodedFrame quicCryptoFrameDecoder(byte[] arr,int index){
-        System.out.println("-------------Crypto frame--------------");
+        System.out.println("Frame Type  = Crypto Frame");
+        System.out.println("header byte = "+(int)arr[index]);
         int p = index+1;
         int offsetLen =  Util.variableLengthIntegerLength(arr[p]);
         byte[] offset_arr = new byte[offsetLen];
@@ -769,7 +813,7 @@ public class Util {
         }
         long cryptoDataLength = Util.variableLengthInteger(length_arr,1);
         p=p+tempCryptoDataLen;
-        System.out.println("cryptoDtaLength "+cryptoDataLength);
+        System.out.println("crypto Data Length = "+cryptoDataLength);
         ///////////////////////////////////
         byte[] cryptoData = new byte[(int) cryptoDataLength];
         for(int i=p;i<p+cryptoDataLength;i++){
@@ -783,7 +827,10 @@ public class Util {
 
     }
 
-    public static DecodedFrame quicConnectionCloseFrameDecoder(byte[] arr, int index){
+    public static DecodedFrame quicConnectionCloseFrameDecoder(byte[] arr, int index) throws QuicException {
+        System.out.println("Frame Type  = Connection Close Frame");
+        System.out.println("header byte = "+(int)arr[index]);
+        /////////////
         int p = index+1;
         int errorCodeLen =  Util.variableLengthIntegerLength(arr[p]);
         byte[] errorCode_arr = new byte[errorCodeLen];
@@ -791,6 +838,7 @@ public class Util {
             errorCode_arr[n-p]=arr[n];
         }
         long errorCode = Util.variableLengthInteger(errorCode_arr,1);
+        System.out.println("Error Code = "+ errorCode);
         p=p+errorCodeLen;
         ///////////////////////////////////////////////
         int frameTypeLen =  Util.variableLengthIntegerLength(arr[p]);
@@ -799,6 +847,7 @@ public class Util {
             frameType_arr[n-p]=arr[n];
         }
         long frameType = Util.variableLengthInteger(frameType_arr,1);
+        System.out.println("Frame Type = "+ frameType);
         p=p+frameTypeLen;
 
         ///////////////////////////////////////////////
@@ -808,6 +857,7 @@ public class Util {
             reasonLen_arr[n-p]=arr[n];
         }
         long reasonLength = Util.variableLengthInteger(frameType_arr,1);
+        System.out.println("Reason Phrase length = "+reasonLength);
         p=p+tempReasonLength;
         ////////////////////////////////////////
         byte[] reasonPhrase=new byte[0];
@@ -821,8 +871,9 @@ public class Util {
         String reasonP = null;
         try{
             reasonP = new String(reasonPhrase,"UTF-8");
+            System.out.println("Reason Phrase = "+reasonP);
         }catch (Exception e){
-
+            throw new QuicException(0,0,"Connection Close exception");
         }
 
         return new DecodedFrame(new QuicConnectionCloseFrame(errorCode,frameType,reasonP),p);

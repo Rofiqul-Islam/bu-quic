@@ -268,16 +268,12 @@ public abstract class QuicFrame {
 
     //////////////////////////////
 
-    public static Set<QuicFrame> specialDecorder(byte[] arr){
+    public static Set<QuicFrame> specialDecorder(byte[] arr) throws QuicException {
         Set<QuicFrame> result = new HashSet<>();
         int index =0;
 
         while(index < arr.length -1){
-            System.out.println("---------------------New frame-----------------");
-            System.out.println("array lenght = "+arr.length);
-            System.out.println("index = "+index);
             byte headerByte = arr[index];
-            System.out.println("header byte = "+headerByte );
             if(headerByte == 2 || headerByte == 3){       //ACK frame
                 DecodedFrame decodedFrame = Util.quicAckFrameDecoder(arr,index);
                 result.add(decodedFrame.getQuicFrame());
@@ -312,7 +308,8 @@ public abstract class QuicFrame {
                 index=decodedFrame.getInderx();
             }
             else{
-                return result;
+                System.out.println("Invalid frame header byte = "+headerByte);
+                throw new QuicException(7,0,"Unknwon frame type");
             }
         }
         return result;

@@ -37,12 +37,13 @@ public class Client {
     public static ConnectionSecrets connectionSecrets = null;
     private static Logger log;
     private static String applicationProtocol = null;
-    public static String connectionId="185.92.221.97";
-    public static int port = 8443;
+    public static String connectionId="104.17.209.9";
+    // public static String connectionId="185.92.221.97";
+    public static int port = 443;
     private static Version quicVersion= Version.IETF_draft_25;
     public static TlsState tlsState;
     public static NewSessionTicket sessionTicket;
-    public static String destianation = "f950a2452f536c37e750ecac4f9819f0f64c1311";
+    public static String destianation = "bd22d8d0e964c1add9f75fb9303567b3002b654b";
     public static DatagramSocket ds;
     public static void main(String args[]) throws IOException, QuicException {
 
